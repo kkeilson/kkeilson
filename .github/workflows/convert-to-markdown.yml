@@ -1,0 +1,63 @@
+name: Convert Documents to Markdown
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows you to run this manually from the Actions tab
+
+jobs:
+  convert_docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out your repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip' # Speeds up subsequent runs
+
+      # Step 3: Install markitdown with all optional features (PDF/Office support)
+      - name: Install MarkItDown
+        run: |
+          python -m pip install --upgrade pip
+          pip install "markitdown[all]"
+
+      # Step 4: Create an output directory and convert your files
+      # Replace 'input_documents' with the path to the folder containing your documents
+      - name: Convert Files using MarkItDown
+        run: |
+          mkdir -p markdown_outputs
+          
+          echo "Starting conversion..."
+          # Iterate over documents in your specified directory (adjust extension as needed)
+          # Example assumes you have a folder named 'input_documents' containing your PDFs/Docs
+          if [ -d "input_documents" ]; then
+            for file in input_documents/*; do
+              if [ -f "$file" ]; then
+                filename=$(basename -- "$file")
+                extension="${filename##*.}"
+                filename_no_ext="${filename%.*}"
+                
+                echo "Converting $filename..."
+                # Run the markitdown CLI tool and redirect output to your output folder
+                markitdown "$file" > "markdown_outputs/${filename_no_ext}.md"
+              fi
+            done
+          else
+            echo "Directory 'input_documents' not found. Creating an empty sample text file to demonstrate..."
+            echo "Hello World" > sample.txt
+            markitdown sample.txt > markdown_outputs/sample.md
+          fi
+
+      # Step 5: Upload the converted markdown files as a GitHub Action artifact
+      - name: Upload Markdown Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: converted-markdown-docs
+          path: markdown_outputs/
+          retention-days: 90 # Optional: adjustments up to 90 days
